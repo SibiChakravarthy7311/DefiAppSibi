@@ -8,6 +8,12 @@ contract DecentralBank{
     address public owner;
     Tether public tether;
     RWD public rwd;
+
+    address[] public stakers;
+
+    mapping(address => uint) public stakingBalance;
+    mapping(address => bool) public hasStaked;
+    mapping(address => bool) public isStaking;
     
     // wiring the smart contracts to each other using solidity language
     constructor(RWD _rwd, Tether _tether) public{
@@ -16,5 +22,56 @@ contract DecentralBank{
         owner = msg.sender;
     }
 
-    
+
+    // function to deposit our tether into the bank/ staking function
+    function depositTokens(uint _amount) public {
+        require(_amount > 0, "Amount must be greater than zero");
+        // Transfer tether tokens to this contract address for staking
+        tether.transferFrom(msg.sender, address(this), _amount);
+
+        // Updating deposited tether/staking balance
+        stakingBalance[msg.sender] += _amount;
+
+        // add the depositing account in the stakers array
+        if(!hasStaked[msg.sender]){
+            stakers.push(msg.sender);
+        }
+
+        // Update the depositing status/ Staking status
+        isStaking[msg.sender] = true;
+        hasStaked[msg.sender] = true;
+    }
+
+
+    // unstake tokens
+    function unstakeTokens() public {
+      uint balance = stakingBalance[msg.sender];
+      // require the amount to be greater than zero
+      require(balance > 0, 'staking balance cannot be less than zero');
+
+      // transfer the tokens to the specified contract address from our bank
+      tether.transfer(msg.sender, balance);
+
+      // reset staking balance
+      stakingBalance[msg.sender] = 0;
+
+      // Update Staking Status
+      isStaking[msg.sender] = false;
+    }
+
+    // issue rewards
+    function issueTokens() public {
+      // Only owner can call this function
+      require(msg.sender == owner, 'caller must be the owner');
+
+      // issue tokens to all stakers
+      for (uint i=0; i<stakers.length; i++) {
+          address recipient = stakers[i]; 
+          uint balance = stakingBalance[recipient] / 9;
+          if(balance > 0) {
+          rwd.transfer(recipient, balance);
+        }
+      }
+    }
+
 }
